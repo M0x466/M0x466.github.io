@@ -1,0 +1,385 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Not Your Time | M0x46</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+        
+<div class="profile">
+    <img src="images/cat-profile.jpg" alt="M0x46 Profile">
+    <h1>M0x46</h1>
+    <p>CTF Player | Aspiring Penetration Tester</p>
+</div>
+
+<nav>
+    <a href="index.html">⌂ Home</a>
+    <a href="about.html">◉ About</a>
+    <a href="index.html#writeups">⌘ Write-ups</a>
+    <a href="categories.html" class="active">▤ Categories</a>
+    <a href="achievements.html">★ Achievements</a>
+</nav>
+
+    </aside>
+
+    <main class="content">
+        <header>
+            <h2>
+                <a href="index.html" class="back-link">Home</a>
+                / Write-up
+            </h2>
+        </header>
+
+        <article class="writeup">
+            <h1>boroCTF 2026: [Reverse] Not Your Time — Reversing Bitwise NOT Flag Obfuscation</h1>
+
+            <p class="article-meta">
+                Oct 17, 2026 · M0x46 · 4 min read
+            </p>
+
+            <div class="article-tags">
+                <span class="tag">Reverse</span>
+                <span class="tag">Bitwise NOT</span>
+                <span class="tag">boroCTF 2026</span>
+            </div>
+
+            <blockquote>
+                <strong>Summary:</strong> The Not Your Time binary
+                hid its expected input inside an array of encoded
+                bytes. By analyzing the validation logic, I
+                identified a bitwise NOT operation. A short Python
+                script was enough to recover the complete flag
+                without brute force.
+            </blockquote>
+
+            <h2>Challenge Overview</h2>
+            <p>
+                Not Your Time was a Reverse Engineering challenge
+                from boroCTF 2026.
+            </p>
+            <p>
+                The challenge provided a compiled executable that
+                accepted user input and compared it against a
+                hidden value.
+            </p>
+            <p>
+                Instead of storing the correct input as plaintext,
+                the program encoded its characters using a
+                bitwise operation.
+            </p>
+            <p>
+                Our objective was to recover the correct input
+                by analyzing the executable.
+            </p>
+
+            <h2>Challenge Information</h2>
+            <table>
+                <tr><th>CTF</th><td>boroCTF 2026</td></tr>
+                <tr><th>Challenge</th><td>Not Your Time</td></tr>
+                <tr><th>Category</th><td>Reverse Engineering</td></tr>
+                <tr><th>Technique</th><td>Bitwise NOT Decoding</td></tr>
+                <tr><th>Tools</th><td>Linux, IDA/Ghidra, Python</td></tr>
+                <tr><th>Target</th><td>Encoded 25-byte array</td></tr>
+            </table>
+
+            <h2>Attack Path</h2>
+            <pre><code>Inspect the executable
+        |
+        v
+Identify the validation routine
+        |
+        v
+Find the encoded byte array
+        |
+        v
+Analyze the comparison
+        |
+        v
+Recognize bitwise NOT (~)
+        |
+        v
+Decode all 25 bytes
+        |
+        v
+Recover the flag</code></pre>
+
+            <h2>Recon and Analysis</h2>
+            <p>
+                I started by inspecting the executable using
+                basic Linux tools.
+            </p>
+            <pre><code>file chall
+strings -a chall</code></pre>
+
+            <p>
+                The file command identifies the binary format
+                and architecture, while strings searches for
+                readable text.
+            </p>
+
+            <p>
+                Dynamic tracing can also help understand the
+                program's behavior:
+            </p>
+            <pre><code>ltrace ./chall</code></pre>
+
+            <p>
+                However, the flag was not directly visible
+                as a readable string, so I moved to static
+                analysis of the input validation routine.
+            </p>
+
+            <h2>Static Analysis</h2>
+            <p>
+                Inside the validation logic, I found an array
+                containing 25 encoded values.
+            </p>
+
+            <pre><code>unsigned char data[] = {
+    157, 144, 141, 144, 188,
+    171, 185, 132, 177, 207,
+    139, 160, 145, 176, 212,
+    160, 139, 183, 204, 160,
+    185, 179, 191, 152, 130
+};</code></pre>
+
+            <p>
+                The program applied a bitwise NOT operation
+                to the encoded bytes before comparing them
+                with the user's input.
+            </p>
+
+            <p>The logic can be simplified to:</p>
+
+            <pre><code>unsigned char decoded = ~data[i];
+
+if (input[i] != decoded) {
+    return 0;
+}</code></pre>
+
+            <p>
+                This means the expected input was not
+                encrypted. It was simply obfuscated with
+                a reversible transformation.
+            </p>
+
+            <h2>Understanding Bitwise NOT</h2>
+            <p>
+                The bitwise NOT operator (~) flips every bit
+                of a number.
+            </p>
+
+            <pre><code>Original byte:
+10011101
+
+After NOT:
+01100010</code></pre>
+
+            <p>
+                The first encoded value was 157 (0x9d).
+                Applying bitwise NOT gives:
+            </p>
+
+            <pre><code>decoded = (~157) & 0xFF
+
+print(decoded)
+print(chr(decoded))</code></pre>
+
+            <p>Output:</p>
+            <pre><code>98
+b</code></pre>
+
+            <p>
+                The first decoded character was "b",
+                which matched the expected flag prefix
+                boroCTF{.
+            </p>
+
+            <h2>Exploitation</h2>
+            <h3>1. Testing the Transformation</h3>
+
+            <p>
+                I first tested the transformation on
+                four encoded bytes.
+            </p>
+
+            <pre><code>data = [157, 144, 141, 144]
+
+for value in data:
+    decoded = (~value) & 0xFF
+    print(value, "->", decoded, "->", chr(decoded))</code></pre>
+
+            <p>Output:</p>
+            <pre><code>157 -> 98 -> b
+144 -> 111 -> o
+141 -> 114 -> r
+144 -> 111 -> o</code></pre>
+
+            <p>
+                The decoded text started with "boro",
+                confirming the hypothesis.
+            </p>
+
+            <h3>2. Decoding the Complete Array</h3>
+
+            <pre><code>data = [
+    157,144,141,144,188,
+    171,185,132,177,207,
+    139,160,145,176,212,
+    160,139,183,204,160,
+    185,179,191,152,130
+]
+
+flag = ""
+
+for value in data:
+    flag += chr((~value) & 0xFF)
+
+print(flag)</code></pre>
+
+            <p>
+                This script applies the transformation
+                to all 25 bytes and reconstructs the flag.
+            </p>
+
+            <h2>Full Solver</h2>
+            <p>
+                I also wrote a reusable version using
+                XOR with 0xFF, which is equivalent to
+                bitwise NOT for 8-bit values.
+            </p>
+
+            <p><strong>solve.py</strong></p>
+
+            <pre><code>#!/usr/bin/env python3
+
+encoded = [
+    157,144,141,144,188,
+    171,185,132,177,207,
+    139,160,145,176,212,
+    160,139,183,204,160,
+    185,179,191,152,130
+]
+
+def decode(data):
+    result = bytearray()
+
+    for value in data:
+        decoded = value ^ 0xFF
+        result.append(decoded)
+
+    return result.decode("ascii")
+
+def main():
+    print("[+] Starting decoder")
+    print(f"[+] Encoded bytes: {len(encoded)}")
+
+    flag = decode(encoded)
+
+    assert flag.startswith("boroCTF{")
+    assert flag.endswith("}")
+
+    print(f"[+] Decoded flag: {flag}")
+
+if __name__ == "__main__":
+    main()</code></pre>
+
+            <p>These expressions are equivalent:</p>
+
+            <pre><code>(~value) & 0xFF
+value ^ 0xFF</code></pre>
+
+            <h2>Alternative: Solving in C</h2>
+
+            <p>
+                The same transformation can be
+                reversed directly in C.
+            </p>
+
+            <pre><code>#include &lt;stdio.h&gt;
+
+int main() {
+    unsigned char data[] = {
+        157,144,141,144,188,
+        171,185,132,177,207,
+        139,160,145,176,212,
+        160,139,183,204,160,
+        185,179,191,152,130
+    };
+
+    int len = sizeof(data) / sizeof(data[0]);
+
+    for (int i = 0; i &lt; len; i++) {
+        unsigned char c = ~data[i];
+        printf("%c", c);
+    }
+
+    printf("\n");
+    return 0;
+}</code></pre>
+
+            <p>Compile and run:</p>
+
+            <pre><code>gcc decode.c -o decode
+./decode</code></pre>
+
+            <h2>Proof</h2>
+            <p>Running the Python solver:</p>
+
+            <pre><code>python3 solve.py</code></pre>
+
+            <p>Output:</p>
+
+            <pre><code>[+] Starting decoder
+[+] Encoded bytes: 25
+[+] Decoded flag: boroCTF{N0t_nO+_tH3_FL@g}</code></pre>
+
+            <h2>Result</h2>
+
+            <pre><code>boroCTF{N0t_nO+_tH3_FL@g}</code></pre>
+
+            <h2>Takeaways</h2>
+            <ul>
+                <li>Bitwise obfuscation is not encryption.</li>
+                <li>Static analysis can reveal hidden constants.</li>
+                <li>Known flag prefixes can help verify decoding.</li>
+                <li>XOR with 0xFF is equivalent to 8-bit NOT.</li>
+                <li>A small Python decoder can be enough to solve a reversing challenge.</li>
+            </ul>
+
+            <hr>
+            <p>
+                <a href="index.html" class="back-link">
+                    ← Back to Home
+                </a>
+            </p>
+        </article>
+        
+<article class="post">
+    <span class="tag">Cryptography</span>
+    <h3>
+        <a href="dalctf-lcg-seed-squared.html">
+            DalCTF 2026: LCG Seed Squared —
+            Predictable PRNG and Known-Plaintext Attack
+        </a>
+    </h3>
+    <p>
+        Recovering a deterministic PRNG state using a
+        known flag prefix, then decrypting the complete
+        flag with a Python script.
+    </p>
+    <small>
+        Oct 17, 2026 · M0x46 · 5 min read
+    </small>
+</article>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

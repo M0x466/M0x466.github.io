@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M0x46 | Cybersecurity Portfolio</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="profile">
+                <img src="images/cat-profile.jpg" alt="M0x46 Profile">
+                <h1>M0x46</h1>
+                <p>CTF Player | Aspiring Penetration Tester</p>
+            </div>
+            
+           
+
+<nav>
+    <a href="index.html" class="active">⌂ Home</a>
+    <a href="about.html">◉ About</a>
+    <a href="index.html#writeups">⌘ Write-ups</a>
+    <a href="categories.html">▤ Categories</a>
+    <a href="achievements.html">★ Achievements</a>
+</nav>
+
+
+        </aside>
+        
+<main class="content">
+
+<header>
+    <h2>Home</h2>
+    <div class="search-box">
+        <input type="text" id="search" placeholder="Search...">
+        <span class="search-icon">⌕</span>
+    </div>
+</header>
+
+    <section id="writeups">
+        <h2>Latest Write-ups</h2>
+
+        <div class="posts">
+            <article class="post">
+                <span class="tag">Pwn</span>
+                <h3>
+                    <a href="boroctf-two-words.html">
+                        boroCTF 2026: Two words, One problem
+                    </a>
+                </h3>
+                <p>
+                    Exploiting a stack buffer overflow using
+                    gets() to overwrite an adjacent variable
+                    and bypass a string comparison.
+                </p>
+                <small>
+                    Oct 17, 2026 · M0x46 · 5 min read
+                </small>
+            </article>
+            
+<article class="post">
+    <span class="tag">Reverse Engineering</span>
+    <h3>
+        <a href="boroctf-not-your-time.html">
+            boroCTF 2026: Not Your Time —
+            Reversing Bitwise NOT Flag Obfuscation
+        </a>
+    </h3>
+    <p>
+        Reversing a bitwise NOT transformation to
+        decode an obfuscated 25-byte flag using Python.
+    </p>
+    <small>
+        Oct 17, 2026 · M0x46 · 4 min read
+    </small>
+</article>
+
+<article class="post">
+    <span class="tag">Cryptography</span>
+    <h3>
+        <a href="dalctf-lcg-seed-squared.html">
+            DalCTF 2026: LCG Seed Squared —
+            Predictable PRNG and Known-Plaintext Attack
+        </a>
+    </h3>
+    <p>
+        Recovering a deterministic PRNG state using a
+        known flag prefix, then decrypting the complete
+        flag with a Python script.
+    </p>
+    <small>
+        Oct 17, 2026 · M0x46 · 5 min read
+    </small>
+</article>
+        </div>
+    </section>
+</main>
+    <script src="script.js"></script>
+</body>
+</html>

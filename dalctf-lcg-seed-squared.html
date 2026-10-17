@@ -1,0 +1,457 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LCG Seed Squared | M0x46</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <aside class="sidebar">
+      
+<div class="profile">
+    <img src="images/cat-profile.jpg" alt="M0x46 Profile">
+    <h1>M0x46</h1>
+    <p>CTF Player | Aspiring Penetration Tester</p>
+</div>
+
+      
+<nav>
+    <a href="index.html">⌂ Home</a>
+    <a href="about.html">◉ About</a>
+    <a href="index.html#writeups">⌘ Write-ups</a>
+    <a href="categories.html" class="active">▤ Categories</a>
+    <a href="achievements.html">★ Achievements</a>
+</nav>
+
+    </aside>
+
+    <main class="content">
+        <header>
+            <h2>
+                <a href="index.html" class="back-link">Home</a>
+                / Write-up
+            </h2>
+        </header>
+
+        <article class="writeup">
+            <h1>DalCTF 2026: [Crypto] LCG Seed Squared — Predictable PRNG and Known-Plaintext Attack</h1>
+
+            <p class="article-meta">
+                Oct 17, 2026 · M0x46 · 5 min read
+            </p>
+
+            <div class="article-tags">
+                <span class="tag">Crypto</span>
+                <span class="tag">PRNG</span>
+                <span class="tag">DalCTF 2026</span>
+            </div>
+
+            <blockquote>
+                <strong>Summary:</strong> I solved LCG Seed Squared
+                by exploiting a weakness in its custom encryption
+                scheme. Using the known first character of the
+                flag, I recovered the generator's initial state,
+                reproduced the sequence, and decrypted the
+                complete flag with Python.
+            </blockquote>
+
+            <h2>Challenge Overview</h2>
+            <p>
+                LCG Seed Squared was a cryptography challenge
+                from DalCTF 2026.
+            </p>
+            <p>
+                The challenge provided a custom pseudo-random
+                number generator and a file containing encrypted
+                numerical values.
+            </p>
+            <p>
+                Each flag character was converted to its ASCII
+                value and multiplied by a generated number.
+                The objective was to reverse this process and
+                recover the original flag.
+            </p>
+
+            <h2>Challenge Information</h2>
+            <table>
+                <tr><th>CTF</th><td>DalCTF 2026</td></tr>
+                <tr><th>Challenge</th><td>LCG Seed Squared</td></tr>
+                <tr><th>Category</th><td>Cryptography</td></tr>
+                <tr><th>Technique</th><td>Known-Plaintext Attack</td></tr>
+                <tr><th>Weakness</th><td>Recoverable PRNG State</td></tr>
+                <tr><th>Tools</th><td>Python</td></tr>
+                <tr><th>Output</th><td>output.txt</td></tr>
+            </table>
+
+            <h2>Attack Path</h2>
+            <pre><code>Analyze the encryption algorithm
+        |
+        v
+Identify character multiplication
+        |
+        v
+Recognize known prefix "DalCTF{"
+        |
+        v
+Recover the first PRNG state
+        |
+        v
+Reproduce the remaining states
+        |
+        v
+Divide each ciphertext integer
+        |
+        v
+Convert integers to ASCII
+        |
+        v
+Recover the flag</code></pre>
+
+            <h2>Recon and Analysis</h2>
+            <p>
+                The encryption worked by multiplying the
+                ASCII value of each character by the current
+                pseudo-random state.
+            </p>
+
+            <pre><code>encrypted_value = ord(character) * x</code></pre>
+
+            <p>
+                After encrypting each character, the state
+                was updated with the following function:
+            </p>
+
+            <pre><code>def rng(y):
+    x = pow(
+        int((175*y + 17)/14 + 45),
+        15,
+        4294967295
+    )
+    return x</code></pre>
+
+            <p>
+                Python's three-argument pow() performs
+                modular exponentiation:
+            </p>
+
+            <pre><code>pow(base, exponent, modulus)
+
+# Equivalent to:
+(base ** exponent) % modulus</code></pre>
+
+            <p>
+                Although the challenge was named LCG Seed
+                Squared, this update function was not a
+                standard linear congruential generator.
+                The important part was that every new state
+                could be calculated from the previous state.
+            </p>
+
+            <h2>Root Cause</h2>
+            <p>
+                The encryption exposed the internal state
+                whenever the corresponding plaintext
+                character was known.
+            </p>
+
+            <pre><code>ciphertext[i] = ord(plaintext[i]) * state[i]
+
+state[i] = ciphertext[i] / ord(plaintext[i])</code></pre>
+
+            <p>
+                Since the expected flag format starts with
+                "DalCTF{", the first character is "D".
+            </p>
+
+            <pre><code>ord("D") = 68</code></pre>
+
+            <p>
+                By dividing the first ciphertext integer
+                by 68, I could recover the first state.
+            </p>
+            <p>
+                Once this state was known, the deterministic
+                generator could reproduce the entire sequence.
+            </p>
+
+            <h2>Exploitation</h2>
+
+            <h3>1. Recovering the Initial State</h3>
+            <p>
+                The first ciphertext value was:
+            </p>
+
+            <pre><code>71303168</code></pre>
+
+            <p>I divided it by the ASCII value of "D":</p>
+
+            <pre><code>ciphertext = 71303168
+known_char = ord("D")
+
+x = ciphertext // known_char
+
+print(x)</code></pre>
+
+            <p>Output:</p>
+            <pre><code>1048576</code></pre>
+
+            <p>The recovered initial state was 1048576.</p>
+
+            <p>To verify it:</p>
+            <pre><code>print(ord("D") * 1048576)
+
+# Output:
+71303168</code></pre>
+
+            <h3>2. Reproducing the PRNG Sequence</h3>
+            <p>
+                Using the recovered state and the original
+                update function, I generated the next values.
+            </p>
+
+            <pre><code>def rng(y):
+    return pow(
+        int((175*y + 17)/14 + 45),
+        15,
+        4294967295
+    )
+
+x = 1048576
+
+for i in range(5):
+    print(f"State {i}: {x}")
+    x = rng(x)</code></pre>
+
+            <p>Output:</p>
+
+            <pre><code>State 0: 1048576
+State 1: 85084641
+State 2: 267541862
+State 3: 521359826
+State 4: 3845864456</code></pre>
+
+            <h3>3. Recovering the Plaintext</h3>
+            <p>
+                To decrypt each character, I reversed
+                the multiplication using integer division.
+            </p>
+
+            <pre><code>decoded = encrypted // x
+character = chr(decoded)</code></pre>
+
+            <p>For the first character:</p>
+
+            <pre><code>encrypted = 71303168
+x = 1048576
+
+value = encrypted // x
+
+print(value)
+print(chr(value))</code></pre>
+
+            <p>Output:</p>
+            <pre><code>68
+D</code></pre>
+
+            <h3>4. Testing Multiple Characters</h3>
+            <p>
+                I reconstructed a short example to confirm
+                the decryption process.
+            </p>
+
+            <pre><code>encrypted = [
+    71303168,
+    8253210177,
+    28894521096,
+    34931108342,
+    323052614304
+]
+
+x = 1048576
+plaintext = ""
+
+for c in encrypted:
+    value = c // x
+    plaintext += chr(value)
+    x = rng(x)
+
+print(plaintext)</code></pre>
+
+            <p>Output:</p>
+
+            <pre><code>DalCT</code></pre>
+
+            <p>
+                These five ciphertext values demonstrate
+                the process using reconstructed sample data.
+                The same method applies to the full output.txt.
+            </p>
+
+            <h2>Full Exploit Script</h2>
+
+            <p>
+                I automated the decryption using Python.
+                The script reads output.txt, recovers the
+                first state, and decrypts every character.
+            </p>
+
+            <p><strong>solve.py</strong></p>
+
+            <pre><code>#!/usr/bin/env python3
+
+MOD = 4294967295
+KNOWN_PREFIX = "DalCTF{"
+
+def rng(y):
+    x = pow(
+        int((175*y + 17)/14 + 45),
+        15,
+        MOD
+    )
+    return x
+
+def read_ciphertext(path):
+    with open(path, "r") as f:
+        return [
+            int(line.strip())
+            for line in f
+            if line.strip()
+        ]
+
+def recover_initial_state(enc):
+    first_char = ord(KNOWN_PREFIX[0])
+
+    assert enc[0] % first_char == 0
+
+    state = enc[0] // first_char
+    return state
+
+def decrypt(enc, state):
+    plaintext = []
+
+    for i, value in enumerate(enc):
+        if state == 0:
+            raise ValueError("Invalid PRNG state")
+
+        assert value % state == 0
+
+        ascii_value = value // state
+        character = chr(ascii_value)
+
+        plaintext.append(character)
+
+        print(
+            f"[{i:02d}] "
+            f"state={state} "
+            f"ascii={ascii_value} "
+            f"char={character}"
+        )
+
+        state = rng(state)
+
+    return "".join(plaintext)
+
+def main():
+    print("[+] Reading ciphertext")
+
+    enc = read_ciphertext("output.txt")
+
+    print(f"[+] Encrypted values: {len(enc)}")
+
+    state = recover_initial_state(enc)
+
+    print(f"[+] Initial state: {state}")
+    print("[+] Starting decryption")
+
+    flag = decrypt(enc, state)
+
+    assert flag.startswith(KNOWN_PREFIX)
+    assert flag.endswith("}")
+
+    print("\n[+] FLAG:")
+    print(flag)
+
+if __name__ == "__main__":
+    main()</code></pre>
+
+            <p>
+                The essential exploitation logic can
+                be reduced to:
+            </p>
+
+            <pre><code>x = enc[0] // ord("D")
+
+flag = ""
+
+for c in enc:
+    flag += chr(c // x)
+    x = rng(x)</code></pre>
+
+            <h2>Proof</h2>
+            <p>
+                With the original output.txt file in
+                the same directory:
+            </p>
+
+            <pre><code>python3 solve.py</code></pre>
+
+            <p>The solver recovers the initial state:</p>
+
+            <pre><code>[+] Initial state: 1048576
+[+] Starting decryption</code></pre>
+
+            <p>And reconstructs the flag:</p>
+
+            <pre><code>DalCTF{533m1ng1y_r4nd0m1y_g3n3r473d_num63rs}</code></pre>
+
+            <h2>Result</h2>
+
+            <pre><code>DalCTF{533m1ng1y_r4nd0m1y_g3n3r473d_num63rs}</code></pre>
+
+            <h2>Why This Attack Works</h2>
+            <p>
+                A deterministic generator is not automatically
+                insecure, but the challenge used its output
+                in a way that directly leaked internal state.
+            </p>
+
+            <p>
+                Multiplication by a known ASCII character
+                could be reversed with a simple division.
+                Once one state was recovered, the next
+                states could be calculated without knowing
+                the original seed generation process.
+            </p>
+
+            <p>
+                No brute force was required. The attack
+                only needed one known plaintext character,
+                its ciphertext value, and the generator
+                update function.
+            </p>
+
+            <h2>Takeaways</h2>
+            <ul>
+                <li>Custom encryption based on simple multiplication is insecure.</li>
+                <li>Known plaintext can expose internal PRNG states.</li>
+                <li>Deterministic sequences can be reproduced after recovering a state.</li>
+                <li>Integer division can reverse this challenge's encryption.</li>
+                <li>Real applications should use established cryptographic algorithms.</li>
+            </ul>
+
+            <hr>
+
+            <p>
+                <a href="index.html" class="back-link">
+                    ← Back to Home
+                </a>
+            </p>
+        </article>
+    </main>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
